@@ -45,4 +45,38 @@ To make it easier on everybody, it's best if we use a PR to diff what work was c
 
 ## Running Tests
 
-Write instructions for how a user executes the automated tests you created.
+### Prerequisites
+
+Install the application and test dependencies:
+```
+pip3 install -e .
+pip3 install -r requirements-test.txt
+```
+
+### Unit Tests
+
+Run the unit tests:
+```
+python3 -m pytest tests/test_api.py -v
+```
+
+### E2E Tests
+
+Start the application in one terminal:
+```
+python3 paint_calculator/run.py
+```
+
+In another terminal, run the E2E tests:
+```
+python3 -m pytest tests/test_e2e.py -v
+```
+
+Note: E2E tests use system Chrome browser in non-headless mode.
+
+### Run All Tests
+
+To run all tests at once (requires the application to be running):
+```
+python3 -m pytest tests/ -v
+```
