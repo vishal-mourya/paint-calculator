@@ -331,6 +331,68 @@ class TestE2EDataValidation(unittest.TestCase):
         expect(total_gallons).to_be_visible()
 
 
+class TestE2EInputValidation(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.playwright = sync_playwright().start()
+        cls.browser = cls.playwright.chromium.launch(channel="chrome", headless=False)
+        
+    @classmethod
+    def tearDownClass(cls):
+        cls.browser.close()
+        cls.playwright.stop()
+
+    def setUp(self):
+        self.context = self.browser.new_context()
+        self.page = self.context.new_page()
+
+    def tearDown(self):
+        self.context.close()
+
+    def test_required_field_validation_on_index(self):
+        self.page.goto('http://localhost:9200/')
+        submit_button = self.page.locator('input[type="submit"]')
+        expect(submit_button).to_be_visible()
+        rooms_input = self.page.locator('input[name="rooms"]')
+        is_required = rooms_input.get_attribute('required')
+        self.assertIsNotNone(is_required)
+
+    def test_required_fields_on_dimensions_page(self):
+        self.page.goto('http://localhost:9200/')
+        self.page.fill('input[name="rooms"]', '1')
+        self.page.click('input[type="submit"]')
+        length_input = self.page.locator('input[name="length-0"]')
+        width_input = self.page.locator('input[name="width-0"]')
+        height_input = self.page.locator('input[name="height-0"]')
+        self.assertIsNotNone(length_input.get_attribute('required'))
+        self.assertIsNotNone(width_input.get_attribute('required'))
+        self.assertIsNotNone(height_input.get_attribute('required'))
+
+    def test_minimum_value_validation(self):
+        self.page.goto('http://localhost:9200/')
+        self.page.fill('input[name="rooms"]', '1')
+        self.page.click('input[type="submit"]')
+        length_input = self.page.locator('input[name="length-0"]')
+        width_input = self.page.locator('input[name="width-0"]')
+        height_input = self.page.locator('input[name="height-0"]')
+        self.assertEqual(length_input.get_attribute('min'), '1')
+        self.assertEqual(width_input.get_attribute('min'), '1')
+        self.assertEqual(height_input.get_attribute('min'), '1')
+
+    def test_input_type_validation(self):
+        self.page.goto('http://localhost:9200/')
+        rooms_input = self.page.locator('input[name="rooms"]')
+        self.assertEqual(rooms_input.get_attribute('type'), 'number')
+        self.page.fill('input[name="rooms"]', '1')
+        self.page.click('input[type="submit"]')
+        length_input = self.page.locator('input[name="length-0"]')
+        width_input = self.page.locator('input[name="width-0"]')
+        height_input = self.page.locator('input[name="height-0"]')
+        self.assertEqual(length_input.get_attribute('type'), 'number')
+        self.assertEqual(width_input.get_attribute('type'), 'number')
+        self.assertEqual(height_input.get_attribute('type'), 'number')
+
+
 if __name__ == '__main__':
     unittest.main()
 

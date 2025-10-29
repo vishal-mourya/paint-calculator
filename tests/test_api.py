@@ -288,6 +288,182 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
 
+class TestInputValidation(unittest.TestCase):
+    def setUp(self):
+        self.app = app.test_client()
+        self.app.testing = True
+
+    def test_empty_room_input_on_index(self):
+        response = self.app.get('/dimensions?rooms=')
+        self.assertEqual(response.status_code, 500)
+
+    def test_missing_length_field(self):
+        payload = {
+            'width-0': '10',
+            'height-0': '8'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_missing_width_field(self):
+        payload = {
+            'length-0': '10',
+            'height-0': '8'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_missing_height_field(self):
+        payload = {
+            'length-0': '10',
+            'width-0': '10'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_empty_length_value(self):
+        payload = {
+            'length-0': '',
+            'width-0': '10',
+            'height-0': '8'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_empty_width_value(self):
+        payload = {
+            'length-0': '10',
+            'width-0': '',
+            'height-0': '8'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_empty_height_value(self):
+        payload = {
+            'length-0': '10',
+            'width-0': '10',
+            'height-0': ''
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_all_empty_values(self):
+        payload = {
+            'length-0': '',
+            'width-0': '',
+            'height-0': ''
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_missing_length(self):
+        payload = {
+            'room-1': {'width': '10', 'height': '8'}
+        }
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_missing_width(self):
+        payload = {
+            'room-1': {'length': '10', 'height': '8'}
+        }
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_missing_height(self):
+        payload = {
+            'room-1': {'length': '10', 'width': '10'}
+        }
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_empty_length_value(self):
+        payload = {
+            'room-1': {'length': '', 'width': '10', 'height': '8'}
+        }
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_empty_width_value(self):
+        payload = {
+            'room-1': {'length': '10', 'width': '', 'height': '8'}
+        }
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_empty_height_value(self):
+        payload = {
+            'room-1': {'length': '10', 'width': '10', 'height': ''}
+        }
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_all_empty_values(self):
+        payload = {
+            'room-1': {'length': '', 'width': '', 'height': ''}
+        }
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 500)
+
+    def test_api_empty_payload(self):
+        payload = {}
+        response = self.app.post('/api/v1/calculate',
+                                  data=json.dumps(payload),
+                                  content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+
+    def test_non_numeric_length(self):
+        payload = {
+            'length-0': 'abc',
+            'width-0': '10',
+            'height-0': '8'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_non_numeric_width(self):
+        payload = {
+            'length-0': '10',
+            'width-0': 'xyz',
+            'height-0': '8'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_non_numeric_height(self):
+        payload = {
+            'length-0': '10',
+            'width-0': '10',
+            'height-0': 'def'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+    def test_special_characters_in_dimensions(self):
+        payload = {
+            'length-0': '@#$',
+            'width-0': '!%^',
+            'height-0': '&*()'
+        }
+        response = self.app.post('/results', data=payload)
+        self.assertEqual(response.status_code, 500)
+
+
 if __name__ == '__main__':
     unittest.main()
 
