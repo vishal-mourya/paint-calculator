@@ -28,7 +28,7 @@ def calculate_feet(formatted_data):
     :param formatted_data: dict of L/W/H information
     :return: integer for the number of feet required by performing `((Length * 2) + (Width * 2)) * Height`
     """
-    return int(formatted_data['length']) * int(formatted_data['width']) * int(formatted_data['height'])
+    return int(float(formatted_data['length'])) * int(float(formatted_data['width'])) * int(float(formatted_data['height']))
 
 
 def calculate_gallons_required(formatted_data):
@@ -46,4 +46,4 @@ def sanitize_input(input):
     :param input: Any number
     :return: The absolute, integer number
     """
-    return abs(int(input))
+    return abs(int(float(input)))
