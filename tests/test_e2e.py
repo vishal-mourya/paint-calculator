@@ -1,398 +1,217 @@
 import unittest
-import time
+import sys
+import os
 from playwright.sync_api import sync_playwright, expect
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from PageObjects import HomePage, DimensionsPage, ResultsPage, PaintCalculatorApp
 
-class TestE2EBasicFlow(unittest.TestCase):
+
+class BaseE2ETest(unittest.TestCase):
+    
     @classmethod
     def setUpClass(cls):
         cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(channel="chrome", headless=False)
-        
+        cls.browser = cls.playwright.chromium.launch(headless=True)
+    
     @classmethod
     def tearDownClass(cls):
         cls.browser.close()
         cls.playwright.stop()
-
+    
     def setUp(self):
         self.context = self.browser.new_context()
         self.page = self.context.new_page()
-
+        
+        self.home_page = HomePage(self.page)
+        self.dimensions_page = DimensionsPage(self.page)
+        self.results_page = ResultsPage(self.page)
+        self.app = PaintCalculatorApp(self.page)
+    
     def tearDown(self):
         self.context.close()
 
+
+class TestE2EBasicFlow(BaseE2ETest):
+    
     def test_full_paint_calculator_flow_two_rooms(self):
-        self.page.goto('http://localhost:9200/')
-        expect(self.page).to_have_title('Home')
-        self.page.fill('input[name="rooms"]', '2')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Dimension Calculation')
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '10')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.fill('input[name="length-1"]', '12')
-        self.page.fill('input[name="width-1"]', '15')
-        self.page.fill('input[name="height-1"]', '9')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-        self.page.click('button.btn-success')
-        modal = self.page.locator('#resultsModal')
-        expect(modal).to_be_visible()
-
+        room_data = [(10, 10, 8), (12, 15, 9)]
+        self.app.complete_calculation_flow(room_data, verify_results=True)
+    
     def test_single_room_calculation(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '10')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-
+        self.app.complete_calculation_same_dimensions(num_rooms=1, length=10, width=10, height=8)
+    
     def test_three_rooms_calculation(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '3')
-        self.page.click('input[type="submit"]')
-        rows = self.page.locator('table[name="dimensions_table"] tr')
-        count = rows.count()
-        self.assertEqual(count, 4)
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '10')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.fill('input[name="length-1"]', '12')
-        self.page.fill('input[name="width-1"]', '15')
-        self.page.fill('input[name="height-1"]', '9')
-        self.page.fill('input[name="length-2"]', '20')
-        self.page.fill('input[name="width-2"]', '20')
-        self.page.fill('input[name="height-2"]', '10')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-
+        self.home_page.navigate()
+        self.home_page.submit_room_count(3)
+        
+        self.dimensions_page.verify_page_loaded()
+        row_count = self.dimensions_page.get_table_row_count()
+        self.assertEqual(row_count, 4)
+        
+        room_data = [(10, 10, 8), (12, 15, 9), (20, 20, 10)]
+        self.dimensions_page.fill_all_rooms(room_data)
+        self.dimensions_page.click_submit()
+        
+        self.results_page.verify_page_loaded()
+    
     def test_five_rooms_calculation(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '5')
-        self.page.click('input[type="submit"]')
-        for i in range(5):
-            self.page.fill(f'input[name="length-{i}"]', '10')
-            self.page.fill(f'input[name="width-{i}"]', '10')
-            self.page.fill(f'input[name="height-{i}"]', '8')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-
+        self.app.complete_calculation_same_dimensions(num_rooms=5, length=10, width=10, height=8)
+    
     def test_ten_rooms_calculation(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '10')
-        self.page.click('input[type="submit"]')
-        rows = self.page.locator('table[name="dimensions_table"] tr')
-        count = rows.count()
-        self.assertEqual(count, 11)
-
-
-class TestE2EEdgeCases(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(channel="chrome", headless=False)
+        self.home_page.navigate()
+        self.home_page.submit_room_count(10)
         
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
+        self.dimensions_page.verify_page_loaded()
+        row_count = self.dimensions_page.get_table_row_count()
+        self.assertEqual(row_count, 11)
 
-    def setUp(self):
-        self.context = self.browser.new_context()
-        self.page = self.context.new_page()
 
-    def tearDown(self):
-        self.context.close()
-
+class TestE2EEdgeCases(BaseE2ETest):
+    
     def test_minimum_dimensions(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '1')
-        self.page.fill('input[name="width-0"]', '1')
-        self.page.fill('input[name="height-0"]', '1')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-
+        room_data = [(1, 1, 1)]
+        self.app.complete_calculation_flow(room_data, verify_results=False)
+    
     def test_large_dimensions(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '100')
-        self.page.fill('input[name="width-0"]', '100')
-        self.page.fill('input[name="height-0"]', '50')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-
+        room_data = [(100, 100, 50)]
+        self.app.complete_calculation_flow(room_data, verify_results=False)
+    
     def test_mixed_dimension_sizes(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '3')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '1')
-        self.page.fill('input[name="width-0"]', '1')
-        self.page.fill('input[name="height-0"]', '1')
-        self.page.fill('input[name="length-1"]', '50')
-        self.page.fill('input[name="width-1"]', '50')
-        self.page.fill('input[name="height-1"]', '25')
-        self.page.fill('input[name="length-2"]', '10')
-        self.page.fill('input[name="width-2"]', '12')
-        self.page.fill('input[name="height-2"]', '8')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-
+        room_data = [(1, 1, 1), (50, 50, 25), (10, 12, 8)]
+        self.app.complete_calculation_flow(room_data, verify_results=False)
+    
     def test_very_large_number_of_rooms(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '20')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Dimension Calculation')
-        rows = self.page.locator('table[name="dimensions_table"] tr')
-        count = rows.count()
-        self.assertEqual(count, 21)
-
-
-class TestE2EModalInteraction(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(channel="chrome", headless=False)
+        self.home_page.navigate()
+        self.home_page.submit_room_count(20)
         
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
+        self.dimensions_page.verify_page_loaded()
+        row_count = self.dimensions_page.get_table_row_count()
+        self.assertEqual(row_count, 21)
 
-    def setUp(self):
-        self.context = self.browser.new_context()
-        self.page = self.context.new_page()
 
-    def tearDown(self):
-        self.context.close()
-
+class TestE2EModalInteraction(BaseE2ETest):
+    
     def test_modal_opens_and_closes(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '10')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.click('input[type="submit"]')
-        self.page.click('button.btn-success')
-        modal = self.page.locator('#resultsModal')
-        expect(modal).to_be_visible()
-        self.page.click('button.close')
-        time.sleep(1)
-
-    def test_modal_displays_results(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '10')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.click('input[type="submit"]')
-        self.page.click('button.btn-success')
-        modal = self.page.locator('#resultsModal')
-        expect(modal).to_be_visible()
-        time.sleep(6)
-        total_gallons = self.page.locator('#sumGallons')
-        expect(total_gallons).to_contain_text('Total Gallons Required:')
-
-    def test_view_results_button_exists(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '10')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.click('input[type="submit"]')
-        button = self.page.locator('button.btn-success')
-        expect(button).to_be_visible()
-        expect(button).to_contain_text('View Results')
-
-
-class TestE2EPageElements(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(channel="chrome", headless=False)
+        self.app.complete_calculation_same_dimensions(num_rooms=1)
         
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
+        self.results_page.click_view_results()
+        self.results_page.wait_for_modal_visible()
+        
+        self.results_page.close_modal()
+    
+    def test_modal_displays_results(self):
+        self.app.complete_calculation_same_dimensions(num_rooms=1, length=10, width=10, height=8)
+        
+        self.results_page.open_results_modal()
+        self.results_page.verify_modal_content()
+    
+    def test_view_results_button_exists(self):
+        self.app.complete_calculation_same_dimensions(num_rooms=1)
+        self.results_page.verify_view_results_button()
 
-    def setUp(self):
-        self.context = self.browser.new_context()
-        self.page = self.context.new_page()
 
-    def tearDown(self):
-        self.context.close()
-
+class TestE2EPageElements(BaseE2ETest):
+    
     def test_homepage_elements(self):
-        self.page.goto('http://localhost:9200/')
-        expect(self.page).to_have_title('Home')
-        input_field = self.page.locator('input[name="rooms"]')
-        expect(input_field).to_be_visible()
-        submit_button = self.page.locator('input[type="submit"]')
-        expect(submit_button).to_be_visible()
-
+        self.home_page.navigate()
+    
     def test_dimensions_page_table_structure(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '2')
-        self.page.click('input[type="submit"]')
-        table = self.page.locator('table[name="dimensions_table"]')
-        expect(table).to_be_visible()
-        headers = self.page.locator('table[name="dimensions_table"] th')
-        self.assertEqual(headers.count(), 4)
-
+        self.home_page.navigate()
+        self.home_page.submit_room_count(2)
+        
+        self.dimensions_page.verify_page_loaded()
+        header_count = self.dimensions_page.get_table_header_count()
+        self.assertEqual(header_count, 4)
+    
     def test_dimensions_page_input_fields(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        length_input = self.page.locator('input[name="length-0"]')
-        width_input = self.page.locator('input[name="width-0"]')
-        height_input = self.page.locator('input[name="height-0"]')
+        self.home_page.navigate()
+        self.home_page.submit_room_count(1)
+        
+        self.dimensions_page.verify_page_loaded()
+        
+        length_input = self.dimensions_page.get_length_input(0)
+        width_input = self.dimensions_page.get_width_input(0)
+        height_input = self.dimensions_page.get_height_input(0)
+        
         expect(length_input).to_be_visible()
         expect(width_input).to_be_visible()
         expect(height_input).to_be_visible()
-
+    
     def test_results_page_modal_structure(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '10')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.click('input[type="submit"]')
-        modal = self.page.locator('#resultsModal')
-        self.page.click('button.btn-success')
-        expect(modal).to_be_visible()
-        modal_title = self.page.locator('.modal-title')
-        expect(modal_title).to_contain_text('Paint Calculation Results')
-
-
-class TestE2EDataValidation(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(channel="chrome", headless=False)
+        self.app.complete_calculation_same_dimensions(num_rooms=1)
         
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
+        self.results_page.open_results_modal()
+        self.results_page.verify_modal_content()
 
-    def setUp(self):
-        self.context = self.browser.new_context()
-        self.page = self.context.new_page()
 
-    def tearDown(self):
-        self.context.close()
-
+class TestE2EDataValidation(BaseE2ETest):
+    
     def test_small_room_less_than_one_gallon(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '5')
-        self.page.fill('input[name="width-0"]', '5')
-        self.page.fill('input[name="height-0"]', '8')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-        self.page.click('button.btn-success')
-        time.sleep(6)
-        total_gallons = self.page.locator('#sumGallons')
-        expect(total_gallons).to_contain_text('Total Gallons Required:')
-
+        room_data = [(5, 5, 8)]
+        self.app.complete_calculation_flow(room_data, verify_results=True)
+    
     def test_exact_350_square_feet(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        self.page.fill('input[name="length-0"]', '10')
-        self.page.fill('input[name="width-0"]', '7')
-        self.page.fill('input[name="height-0"]', '5')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-
+        room_data = [(10, 7, 5)]
+        self.app.complete_calculation_flow(room_data, verify_results=False)
+    
     def test_multiple_rooms_total_calculation(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '4')
-        self.page.click('input[type="submit"]')
-        for i in range(4):
-            self.page.fill(f'input[name="length-{i}"]', '10')
-            self.page.fill(f'input[name="width-{i}"]', '10')
-            self.page.fill(f'input[name="height-{i}"]', '8')
-        self.page.click('input[type="submit"]')
-        expect(self.page).to_have_title('Results!')
-        self.page.click('button.btn-success')
-        time.sleep(6)
-        total_gallons = self.page.locator('#sumGallons')
-        expect(total_gallons).to_be_visible()
-
-
-class TestE2EInputValidation(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(channel="chrome", headless=False)
+        self.home_page.navigate()
+        self.home_page.submit_room_count(4)
         
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
+        self.dimensions_page.verify_page_loaded()
+        self.dimensions_page.fill_all_rooms_same_dimensions(4, 10, 10, 8)
+        self.dimensions_page.click_submit()
+        
+        self.results_page.verify_page_loaded()
+        self.results_page.open_results_modal()
+        self.results_page.verify_total_gallons_visible()
 
-    def setUp(self):
-        self.context = self.browser.new_context()
-        self.page = self.context.new_page()
 
-    def tearDown(self):
-        self.context.close()
-
+class TestE2EInputValidation(BaseE2ETest):
+    
     def test_required_field_validation_on_index(self):
-        self.page.goto('http://localhost:9200/')
-        submit_button = self.page.locator('input[type="submit"]')
-        expect(submit_button).to_be_visible()
-        rooms_input = self.page.locator('input[name="rooms"]')
-        is_required = rooms_input.get_attribute('required')
-        self.assertIsNotNone(is_required)
-
+        self.home_page.navigate()
+        required_attr = self.home_page.get_rooms_input_attribute('required')
+        self.assertIsNotNone(required_attr)
+    
     def test_required_fields_on_dimensions_page(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        length_input = self.page.locator('input[name="length-0"]')
-        width_input = self.page.locator('input[name="width-0"]')
-        height_input = self.page.locator('input[name="height-0"]')
+        self.home_page.navigate()
+        self.home_page.submit_room_count(1)
+        
+        self.dimensions_page.verify_page_loaded()
+        
+        length_input = self.dimensions_page.get_length_input(0)
+        width_input = self.dimensions_page.get_width_input(0)
+        height_input = self.dimensions_page.get_height_input(0)
+        
         self.assertIsNotNone(length_input.get_attribute('required'))
         self.assertIsNotNone(width_input.get_attribute('required'))
         self.assertIsNotNone(height_input.get_attribute('required'))
-
+    
     def test_minimum_value_validation(self):
-        self.page.goto('http://localhost:9200/')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        length_input = self.page.locator('input[name="length-0"]')
-        width_input = self.page.locator('input[name="width-0"]')
-        height_input = self.page.locator('input[name="height-0"]')
-        self.assertEqual(length_input.get_attribute('min'), '1')
-        self.assertEqual(width_input.get_attribute('min'), '1')
-        self.assertEqual(height_input.get_attribute('min'), '1')
-
+        self.home_page.navigate()
+        self.home_page.submit_room_count(1)
+        
+        self.dimensions_page.verify_page_loaded()
+        
+        self.dimensions_page.verify_input_attributes(
+            room_index=0,
+            expected_type='number',
+            expected_min='1',
+            should_be_required=True
+        )
+    
     def test_input_type_validation(self):
-        self.page.goto('http://localhost:9200/')
-        rooms_input = self.page.locator('input[name="rooms"]')
-        self.assertEqual(rooms_input.get_attribute('type'), 'number')
-        self.page.fill('input[name="rooms"]', '1')
-        self.page.click('input[type="submit"]')
-        length_input = self.page.locator('input[name="length-0"]')
-        width_input = self.page.locator('input[name="width-0"]')
-        height_input = self.page.locator('input[name="height-0"]')
-        self.assertEqual(length_input.get_attribute('type'), 'number')
-        self.assertEqual(width_input.get_attribute('type'), 'number')
-        self.assertEqual(height_input.get_attribute('type'), 'number')
+        self.home_page.navigate()
+        rooms_type = self.home_page.get_rooms_input_attribute('type')
+        self.assertEqual(rooms_type, 'number')
+        
+        self.home_page.submit_room_count(1)
+        self.dimensions_page.verify_page_loaded()
+        
+        self.dimensions_page.verify_input_attributes(room_index=0)
 
 
 if __name__ == '__main__':
     unittest.main()
-
