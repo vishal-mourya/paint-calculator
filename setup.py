@@ -7,6 +7,11 @@ requirements = [
     "Flask-Bootstrap==3.3.7.1",
 ]
 
+test_requirements = [
+    "pytest==8.3.3",
+    "playwright==1.48.0",
+]
+
 setup(name='paint-calculator',
       version=version,
       description='App to create web tests against',
@@ -14,5 +19,8 @@ setup(name='paint-calculator',
       author_email='JoeCarlyon@gmail.com',
       url='https://github.com/joecarlyon/paint-calculator',
       install_requires=requirements,
+      extras_require={
+          'test': test_requirements,
+      },
       packages=['paint_calculator'],
       )
